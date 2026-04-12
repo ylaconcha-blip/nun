@@ -412,7 +412,7 @@ function setup() {
     return { ...n, x, y, ox:x, oy:y,
       fase: Math.random()*Math.PI*2,
       vel:  0.22+Math.random()*0.32,
-      amp:  (7+Math.random()*13)*devicePixelRatio,
+      amp:  (4+Math.random()*6)*devicePixelRatio,
       fs:   (12+Math.random()*4)*devicePixelRatio
     }
   })
@@ -636,12 +636,16 @@ function hundirse() {
 }
 
 // ── EVENTOS CANVAS ────────────────────────────────────────────────
-function find(px,py) {
-  return nc.slice().reverse().find(n=>{
-    ctx.font=`300 ${n.fs}px Georgia,serif`
+function find(px, py) {
+  return nc.slice().reverse().find(n => {
+    ctx.font = `300 ${n.fs}px Georgia, serif`
     const w = ctx.measureText(n.nombre).width
-    return px>=n.x-w/2-12 && px<=n.x+w/2+12
-        && py>=n.y-n.fs/2-8 && py<=n.y+n.fs/2+8
+    const h = n.fs
+    const margen = 14 * devicePixelRatio
+    return px >= n.x - w/2 - margen
+        && px <= n.x + w/2 + margen
+        && py >= n.y - h/2 - margen
+        && py <= n.y + h/2 + margen
   })
 }
 
