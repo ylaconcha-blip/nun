@@ -72,7 +72,7 @@ canvas {
   color: white;
   opacity: 0;
   animation: subir 2s ease 0.4s forwards;
-}
+}m
 
 #sub {
   font-size: clamp(0.7rem, 1.5vw, 0.9rem);
@@ -889,20 +889,38 @@ cvs.addEventListener('mousedown',e=>{
   if(n){ drag=n; ddx=px-n.ox*devicePixelRatio; ddy=py-n.oy*devicePixelRatio }
 })
 
-cvs.addEventListener('mouseup',e=>{
-  const [px,py]=pos(e)
-  const moved=Math.hypot(px-clickX,py-clickY)>5*devicePixelRatio
-  const n=find(px,py)
-  if(n&&!moved) seleccionar(n)
-  drag=null
+cvs.addEventListener('mouseup', e => {
+  const [px, py] = pos(e)
+  const moved = Math.hypot(px - clickX, py - clickY) > 5 * devicePixelRatio
+  const n = find(px, py)
+  if (n && !moved) {
+    seleccionar(n)
+  } else if (!n && !moved) {
+    // click en vacío — resetear todo
+    seleccionado = null
+    activo = null
+    narrativaActiva = null
+    if (panel.classList.contains('visible')) {
+      cerrar()
+    }
+  }
+  drag = null
 })
-
-cvs.addEventListener('touchstart',e=>{
-  if(!vivo) return
-  const [px,py]=pos(e)
-  const n=find(px,py)
-  if(n) seleccionar(n)
-},{passive:true})
+cvs.addEventListener('touchstart', e => {
+  if (!vivo) return
+  const [px, py] = pos(e)
+  const n = find(px, py)
+  if (n) {
+    seleccionar(n)
+  } else {
+    seleccionado = null
+    activo = null
+    narrativaActiva = null
+    if (panel.classList.contains('visible')) {
+      cerrar()
+    }
+  }
+}, { passive: true })
 
 window.addEventListener('resize',redim)
 
