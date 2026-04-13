@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NùN — memoria oceánica</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@200;300;400&family=Inter:wght@300;400&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 
@@ -19,7 +22,7 @@
 
 body {
   background: var(--bg);
-  font-family: 'Georgia', serif;
+  font-family: 'Inter', sans-serif;
   overflow: hidden;
   width: 100vw;
   height: 100vh;
@@ -66,13 +69,14 @@ canvas {
 }
 
 #titulo {
-  font-size: clamp(5rem, 13vw, 10rem);
-  font-weight: 300;
-  letter-spacing: 0.35em;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(5rem, 14vw, 11rem);
+  font-weight: 200;
+  letter-spacing: 0.4em;
   color: white;
   opacity: 0;
   animation: subir 2s ease 0.4s forwards;
-}m
+}
 
 #sub {
   font-size: clamp(0.7rem, 1.5vw, 0.9rem);
@@ -542,6 +546,15 @@ function frame() {
   t += 0.006
   ctx.clearRect(0,0,cvs.width,cvs.height)
 
+  // fondo sonar
+if(!bgImg.complete || !bgImg.naturalWidth) {
+  // imagen aún cargando
+} else {
+  ctx.globalAlpha = 0.07
+  ctx.drawImage(bgImg, 0, 0, cvs.width, cvs.height)
+  ctx.globalAlpha = 1
+}
+
   // fondo radial
   const g = ctx.createRadialGradient(
     cvs.width/2,cvs.height/2,0,
@@ -643,7 +656,7 @@ function frame() {
     const dim = ref && !esH && !esSel && !esA && !esConn && !enNarrActiva
 
     const fs = (esH||esSel||esA) ? n.fs*1.08 : n.fs
-    ctx.font=`${(esH||esSel||esA)?400:300} ${fs}px Georgia,serif`
+ctx.font = `${(esH||esSel||esA) ? 400 : 300} ${fs}px 'Barlow Condensed', sans-serif`
     const w = ctx.measureText(n.nombre).width
 
     if(esH||esSel||esA||esNavVecino) {
@@ -856,7 +869,7 @@ function hundirse() {
 // ── EVENTOS ───────────────────────────────────────────────────────
 function find(px, py) {
   return nc.slice().reverse().find(n => {
-    ctx.font = `300 ${n.fs}px Georgia, serif`
+    ctx.font = `300 ${n.fs}px 'Barlow Condensed', sans-serif`
     const w = ctx.measureText(n.nombre).width
     const h = n.fs
     const margen = 14 * devicePixelRatio
