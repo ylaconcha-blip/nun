@@ -503,8 +503,8 @@ const FONT_WORDS = "'Barlow Condensed', sans-serif"
 
 // área del Pacífico frente a Chile y Perú
 const AIS_BOUNDS = {
-  latMin: -60, latMax: 30,
-  lonMin: -180, lonMax: -60
+  latMin: -85, latMax: 85,
+  lonMin: -180, lonMax: 180
 }
 
 // fondo sonar
@@ -569,13 +569,10 @@ function conectarAIS() {
 
     // suscribir al área del Pacífico sur
     const sub = {
-      APIKey: AIS_KEY,
-      BoundingBoxes: [[
-        [AIS_BOUNDS.latMin, AIS_BOUNDS.lonMin],
-        [AIS_BOUNDS.latMax, AIS_BOUNDS.lonMax]
-      ]],
-      FilterMessageTypes: ['PositionReport']
-    }
+  APIKey: AIS_KEY,
+  BoundingBoxes: [[[-85, -180],[85, 180]]],
+  FilterMessageTypes: ['PositionReport']
+}
     aisWs.send(JSON.stringify(sub))
   }
 
@@ -623,8 +620,10 @@ function conectarAIS() {
 
 // proyectar lat/lon a coordenadas del canvas
 function proyectar(lat, lon) {
-  const x = ((lon - AIS_BOUNDS.lonMin) / (AIS_BOUNDS.lonMax - AIS_BOUNDS.lonMin)) * cvs.width
-  const y = ((AIS_BOUNDS.latMax - lat) / (AIS_BOUNDS.latMax - AIS_BOUNDS.latMin)) * cvs.height
+  const x = ((lon + 180) / 360) * cvs.width
+  const latRad = lat * Math.PI / 180
+  const mercN = Math.log(Math.tan(Math.PI/4 + latRad/2))
+  const y = (0.5 - mercN / (2 * Math.PI)) * cvs.height
   return [x, y]
 }
 
