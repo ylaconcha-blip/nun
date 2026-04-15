@@ -503,8 +503,8 @@ const FONT_WORDS = "'Barlow Condensed', sans-serif"
 
 // área del Pacífico frente a Chile y Perú
 const AIS_BOUNDS = {
-  latMin: -60, latMax: -10,
-  lonMin: -90, lonMax: -60
+  latMin: -60, latMax: 30,
+  lonMin: -180, lonMax: -60
 }
 
 // fondo sonar
@@ -579,37 +579,34 @@ function conectarAIS() {
     aisWs.send(JSON.stringify(sub))
   }
 
-  aisWs.onmessage = (e) => {
-    try {
-      const msg = JSON.parse(e.data)
-      if (msg.MessageType !== 'PositionReport') return
-      const pos = msg.Message?.PositionReport
-      if (!pos) return
-      const mmsi = pos.UserId
-      const lat  = pos.Latitude
-      const lon  = pos.Longitude
-      // filtrar posiciones inválidas
-      if (!lat || !lon || lat === 0 || lon === 0) return
-      if (lat < AIS_BOUNDS.latMin || lat > AIS_BOUNDS.latMax) return
-      if (lon < AIS_BOUNDS.lonMin || lon > AIS_BOUNDS.lonMax) return
+  aisWs.onmessage = async (e) => {
+  try {
+    const text = typeof e.data === 'string' ? e.data : await e.data.text()
+    const msg = JSON.parse(text)
+    if (msg.MessageType !== 'PositionReport') return
+    const pos = msg.Message?.PositionReport
+    if (!pos) return
+    const mmsi = pos.UserId
+    const lat  = pos.Latitude
+    const lon  = pos.Longitude
+    if (!lat || !lon || lat === 0 || lon === 0) return
 
-      barcos.set(mmsi, {
-        lat, lon,
-        heading: pos.TrueHeading || pos.CourseOverGround || 0,
-        updated: Date.now()
-      })
+    barcos.set(mmsi, {
+      lat, lon,
+      heading: pos.TrueHeading || pos.CourseOverGround || 0,
+      updated: Date.now()
+    })
 
-      // limpiar barcos viejos (>10 min)
-      const ahora = Date.now()
-      barcos.forEach((v, k) => {
-        if (ahora - v.updated > 600000) barcos.delete(k)
-      })
+    const ahora = Date.now()
+    barcos.forEach((v, k) => {
+      if (ahora - v.updated > 600000) barcos.delete(k)
+    })
 
-      aisCount.textContent = barcos.size > 0 ? `${barcos.size}` : ''
-    } catch(err) {
-      // ignorar mensajes malformados
-    }
+    aisCount.textContent = barcos.size > 0 ? `${barcos.size}` : ''
+  } catch(err) {
+    // ignorar
   }
+}
 
   aisWs.onerror = () => {
     aisConectado = false
