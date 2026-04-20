@@ -270,10 +270,6 @@ canvas { position:absolute; inset:0; width:100%; height:100%; }
 const SURL = 'https://uwduhddojpodzyvipbrq.supabase.co'
 const SKEY = 'sb_publishable_V38s6emQE9jMQ54WhSIlJw_7WzJhGFY'
 const AIS_KEY = 'f233b8fe03520713d0d9f0b013e79324a5195365'
-const MB_USER = 'Rahsaaan'
-const MB_PASS = 'Rahsaaan123$%&'
-const MB_AUTH = 'Basic ' + btoa(MB_USER + ':' + MB_PASS)
-
 const MB_ESTUDIOS = [
   { id:'5161274049', tipo:'ballena' },
   { id:'446603', tipo:'ave' },
@@ -350,10 +346,7 @@ async function init() {
 }
 
 async function cargarCables() {
-  const urls = [
-    'https://raw.githubusercontent.com/lintaojlu/submarine_cable_information/main/data/cable-geo.json',
-    'https://www.submarinecablemap.com/api/v3/cable/cable-geo.json'
-  ]
+  const urls = ['/.netlify/functions/cables']
   for (const url of urls) {
     try {
       const res = await fetch(url); if (!res.ok) continue
@@ -371,8 +364,8 @@ async function cargarCables() {
 async function cargarMovebank() {
   for (const est of MB_ESTUDIOS) {
     try {
-      const url = `https://www.movebank.org/movebank/service/direct-read?entity_type=event&study_id=${est.id}&max_events_per_individual=200&attributes=timestamp,location_lat,location_long,individual_local_identifier`
-      const res = await fetch(url,{headers:{'Authorization':MB_AUTH}}); if(!res.ok) continue
+      const url = `/.netlify/functions/movebank?study_id=${est.id}`
+const res = await fetch(url)
       const csv = await res.text(); const lineas=csv.trim().split('\n'); if(lineas.length<2) continue
       const h=lineas[0].split(',').map(x=>x.replace(/"/g,'').trim())
       const iLat=h.indexOf('location-lat'),iLon=h.indexOf('location-long'),iId=h.indexOf('individual-local-identifier')
