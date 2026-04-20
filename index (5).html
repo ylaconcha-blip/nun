@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NùN — memoria oceánica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@200;300;400&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --desastre:#378ADD; --mitologia:#7F77DD; --geopolitica:#D85A30;
+  --biologia:#1D9E75; --antropoceno:#BA7517; --bg:#050810;
+}
+body { background:var(--bg); font-family:'Inter',sans-serif; overflow:hidden; width:100vw; height:100vh; }
+
+#mapa {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  transition:width .65s cubic-bezier(.4,0,.2,1), transform .65s cubic-bezier(.4,0,.2,1);
+  z-index:1;
+}
+#mapa.partido { width:67%; transform:scale(.96); transform-origin:center center; }
+canvas { position:absolute; inset:0; width:100%; height:100%; }
+
+/* SUPERFICIE */
+#superficie {
+  position:fixed; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; z-index:100; transition:opacity 1.5s ease;
+}
+#superficie.oculto { opacity:0; pointer-events:none; }
+#titulo {
+  font-family:'Barlow Condensed',sans-serif; font-size:clamp(5rem,14vw,11rem);
+  font-weight:200; letter-spacing:.4em; color:white; opacity:0; animation:subir 2s ease .4s forwards;
+}
+#sub {
+  font-size:clamp(.6rem,1.3vw,.8rem); letter-spacing:.5em; color:rgba(255,255,255,.3);
+  margin-top:.6rem; margin-bottom:5rem; opacity:0; animation:subir 2s ease 1s forwards;
+  text-transform:lowercase; font-weight:300;
+}
+#btn-hundirse {
+  background:none; border:none; color:rgba(255,255,255,.18);
+  font-family:'Inter',sans-serif; font-size:.65rem; letter-spacing:.6em;
+  cursor:pointer; text-transform:lowercase; opacity:0;
+  animation:subir 2s ease 2.2s forwards; transition:color .6s; font-weight:300;
+}
+#btn-hundirse:hover { color:rgba(255,255,255,.6); }
+#nav {
+  position:fixed; top:1.8rem; right:2rem; display:flex; gap:2.5rem;
+  z-index:110; opacity:0; animation:subir 1s ease 3s forwards;
+}
+#nav a { color:rgba(255,255,255,.18); text-decoration:none; font-size:.6rem; letter-spacing:.35em; text-transform:lowercase; transition:color .4s; font-weight:300; }
+#nav a:hover { color:rgba(255,255,255,.55); }
+
+/* CAPAS — superior izquierda */
+#capas-ui {
+  position:fixed; top:1.8rem; left:2rem; display:flex; flex-direction:column;
+  gap:.45rem; z-index:110; opacity:0; transition:opacity 1s ease;
+}
+#capas-ui.visible { opacity:1; }
+
+/* EJES — inferior izquierda, siempre */
+#ejes-ui {
+  position:fixed; bottom:1.8rem; left:2rem; display:flex; flex-direction:column;
+  gap:.45rem; z-index:110; opacity:0; transition:opacity 1s ease;
+}
+#ejes-ui.visible { opacity:1; }
+
+.capa-row, .eje-row {
+  display:flex; align-items:center; gap:.55rem;
+  cursor:pointer; user-select:none; transition:opacity .4s;
+}
+.capa-row.off, .eje-row.off { opacity:.22; }
+.capa-row:hover, .eje-row:hover { opacity:1 !important; }
+.capa-dot, .eje-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; transition:opacity .4s, transform .3s; }
+.capa-row.off .capa-dot, .eje-row.off .eje-dot { opacity:.3; transform:scale(.7); }
+.capa-label, .eje-label { font-size:.48rem; letter-spacing:.28em; text-transform:lowercase; color:rgba(255,255,255,.75); font-weight:300; transition:color .4s; }
+.capa-row.off .capa-label, .eje-row.off .eje-label { color:rgba(255,255,255,.3); }
+.capa-count { font-size:.4rem; letter-spacing:.15em; color:rgba(255,255,255,.3); font-weight:300; min-width:1.5rem; }
+
+/* separador entre capas y ejes */
+#ejes-separador {
+  width:100%; height:1px; background:rgba(255,255,255,.08); margin:.3rem 0;
+}
+
+/* PANEL */
+#panel {
+  position:fixed; top:0; right:0; width:33%; height:100%;
+  background:rgba(5,8,16,.97); border-left:1px solid rgba(255,255,255,.05);
+  display:flex; flex-direction:column; transform:translateX(100%);
+  transition:transform .65s cubic-bezier(.4,0,.2,1);
+  z-index:40; overflow:hidden;
+}
+#panel.visible { transform:translateX(0); }
+
+/* fullscreen: z-index alto, cubre todo */
+#panel.fullscreen {
+  width:100%; border-left:none;
+  z-index:200;
+}
+
+#panel-header {
+  padding:2rem 2rem 1.2rem; border-bottom:1px solid rgba(255,255,255,.04);
+  display:flex; align-items:flex-start; justify-content:space-between; flex-shrink:0;
+}
+#panel-nombre {
+  font-family:'Barlow Condensed',sans-serif; font-size:clamp(1.6rem,2.8vw,2.4rem);
+  font-weight:300; letter-spacing:.15em; color:white; line-height:1; text-transform:lowercase;
+}
+#panel-eje { font-size:.52rem; letter-spacing:.4em; text-transform:lowercase; margin-top:.5rem; opacity:.6; font-weight:300; }
+#panel-narrativa {
+  font-size:.48rem; letter-spacing:.35em; text-transform:lowercase; margin-top:.4rem;
+  opacity:0; transition:opacity .5s; display:flex; align-items:center; gap:.4rem; font-weight:300;
+}
+#panel-narrativa.visible { opacity:.7; }
+#panel-narrativa-dot { width:4px; height:4px; border-radius:50%; flex-shrink:0; }
+
+#header-btns { display:flex; flex-direction:column; align-items:flex-end; gap:.6rem; flex-shrink:0; }
+#btn-cerrar {
+  background:none; border:none; color:rgba(255,255,255,.3); cursor:pointer;
+  font-size:1.2rem; line-height:1; transition:color .3s;
+}
+#btn-cerrar:hover { color:white; }
+#btn-fs {
+  background:none; border:none; color:rgba(255,255,255,.15); cursor:pointer;
+  font-size:.52rem; letter-spacing:.3em; text-transform:lowercase;
+  font-family:'Inter',sans-serif; transition:color .4s; font-weight:300;
+}
+#btn-fs:hover { color:rgba(255,255,255,.5); }
+
+/* botón contraer en fullscreen — más visible */
+#panel.fullscreen #btn-fs {
+  color:rgba(255,255,255,.5);
+  font-size:.6rem;
+}
+#panel.fullscreen #btn-fs:hover { color:white; }
+
+#panel-body { flex:1; overflow-y:auto; scrollbar-width:none; }
+#panel-body::-webkit-scrollbar { display:none; }
+
+/* GALERÍA */
+#galeria {
+  position:relative; width:100%; background:rgba(0,0,0,.4); flex-shrink:0;
+}
+#galeria.oculta { display:none; }
+
+#panel-img {
+  width:100%;
+  max-height:50vh;
+  object-fit:contain;   /* imagen completa, sin recorte */
+  display:block;
+  opacity:0; transition:opacity .7s ease;
+  background:rgba(0,0,0,.2);
+}
+#panel-img.ok { opacity:1; }
+
+/* en fullscreen la imagen puede ser más grande */
+#panel.fullscreen #panel-img {
+  max-height:70vh;
+}
+
+#galeria-nav {
+  position:absolute; bottom:0; left:0; right:0;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.6rem .8rem;
+  background:linear-gradient(transparent, rgba(0,0,0,.5));
+}
+#galeria-prev, #galeria-next {
+  background:none; border:none; color:rgba(255,255,255,.5);
+  cursor:pointer; font-size:.9rem; line-height:1;
+  transition:color .3s; padding:.2rem .4rem;
+}
+#galeria-prev:hover, #galeria-next:hover { color:white; }
+#galeria-prev:disabled, #galeria-next:disabled { opacity:0; pointer-events:none; }
+#galeria-indicadores { display:flex; gap:.3rem; align-items:center; }
+.galeria-dot {
+  width:4px; height:4px; border-radius:50%;
+  background:rgba(255,255,255,.3); transition:background .3s, transform .3s; cursor:pointer;
+}
+.galeria-dot.activo { background:rgba(255,255,255,.9); transform:scale(1.3); }
+
+#panel-txt {
+  padding:1.5rem 2rem; font-size:.82rem; line-height:1.95;
+  color:rgba(255,255,255,.45); font-weight:300;
+}
+
+#panel-nav-narrativa { margin:0 2rem 1.5rem; display:none; align-items:center; gap:1rem; }
+#panel-nav-narrativa.visible { display:flex; }
+.nav-btn {
+  background:none; border:1px solid rgba(255,255,255,.07); color:rgba(255,255,255,.3);
+  font-family:'Inter',sans-serif; font-size:.55rem; letter-spacing:.3em; text-transform:lowercase;
+  cursor:pointer; padding:.4rem .8rem; transition:all .3s; flex:1; text-align:center; font-weight:300;
+}
+.nav-btn:hover { border-color:rgba(255,255,255,.2); color:rgba(255,255,255,.7); }
+.nav-btn:disabled { opacity:.15; cursor:default; }
+
+#panel-footer { padding:1.2rem 2rem 1.8rem; border-top:1px solid rgba(255,255,255,.04); flex-shrink:0; }
+#footer-label { font-size:.48rem; letter-spacing:.45em; text-transform:lowercase; color:rgba(255,255,255,.1); margin-bottom:1rem; font-weight:300; }
+
+#hint {
+  position:fixed; bottom:1.8rem; left:50%; transform:translateX(-50%);
+  font-size:.52rem; letter-spacing:.35em; color:rgba(255,255,255,.12); text-transform:lowercase;
+  z-index:30; pointer-events:none; transition:opacity .5s; white-space:nowrap; font-weight:300;
+}
+#velo { position:fixed; inset:0; background:var(--bg); z-index:300; opacity:0; pointer-events:none; transition:opacity .7s ease; }
+#velo.on { opacity:1; }
+@keyframes subir { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+<div id="velo"></div>
+<div id="mapa"><canvas id="c"></canvas></div>
+
+<!-- CAPAS superior izquierda -->
+<div id="capas-ui">
+  <div class="capa-row" id="capa-barcos" onclick="toggleCapa('barcos')">
+    <div class="capa-dot" style="background:rgba(180,160,100,1)"></div>
+    <span class="capa-label">tráfico marítimo</span>
+    <span class="capa-count" id="cnt-barcos"></span>
+  </div>
+  <div class="capa-row" id="capa-ballenas" onclick="toggleCapa('ballenas')">
+    <div class="capa-dot" style="background:rgba(100,160,220,1)"></div>
+    <span class="capa-label">ballenas</span>
+    <span class="capa-count" id="cnt-ballenas"></span>
+  </div>
+  <div class="capa-row" id="capa-aves" onclick="toggleCapa('aves')">
+    <div class="capa-dot" style="background:rgba(150,220,150,1)"></div>
+    <span class="capa-label">aves migratorias</span>
+    <span class="capa-count" id="cnt-aves"></span>
+  </div>
+  <div class="capa-row" id="capa-cables" onclick="toggleCapa('cables')">
+    <div class="capa-dot" style="background:rgba(180,220,255,1)"></div>
+    <span class="capa-label">cables submarinos</span>
+    <span class="capa-count" id="cnt-cables"></span>
+  </div>
+  <div class="capa-row" id="capa-conquista" onclick="toggleCapa('conquista')">
+    <div class="capa-dot" style="background:rgba(220,180,100,1)"></div>
+    <span class="capa-label">rutas de conquista</span>
+  </div>
+</div>
+
+<!-- EJES inferior izquierda — siempre -->
+<div id="ejes-ui">
+  <div class="eje-row" id="eje-desastre" onclick="toggleEje('desastre')">
+    <div class="eje-dot" style="background:var(--desastre)"></div>
+    <span class="eje-label">desastre natural</span>
+  </div>
+  <div class="eje-row" id="eje-mitologia" onclick="toggleEje('mitologia')">
+    <div class="eje-dot" style="background:var(--mitologia)"></div>
+    <span class="eje-label">mitología</span>
+  </div>
+  <div class="eje-row" id="eje-geopolitica" onclick="toggleEje('geopolitica')">
+    <div class="eje-dot" style="background:var(--geopolitica)"></div>
+    <span class="eje-label">geopolítica</span>
+  </div>
+  <div class="eje-row" id="eje-biologia" onclick="toggleEje('biologia')">
+    <div class="eje-dot" style="background:var(--biologia)"></div>
+    <span class="eje-label">biología especulativa</span>
+  </div>
+  <div class="eje-row" id="eje-antropoceno" onclick="toggleEje('antropoceno')">
+    <div class="eje-dot" style="background:var(--antropoceno)"></div>
+    <span class="eje-label">antropoceno</span>
+  </div>
+</div>
+
+<div id="superficie">
+  <nav id="nav"><a href="#">proyecto</a><a href="#">archivo</a></nav>
+  <h1 id="titulo">NùN</h1>
+  <p id="sub">memoria oceánica</p>
+  <button id="btn-hundirse" onclick="hundirse()">∿ hundirse</button>
+</div>
+
+<div id="panel">
+  <div id="panel-header">
+    <div>
+      <div id="panel-nombre"></div>
+      <div id="panel-eje"></div>
+      <div id="panel-narrativa">
+        <div id="panel-narrativa-dot"></div>
+        <span id="panel-narrativa-nombre"></span>
+      </div>
+    </div>
+    <div id="header-btns">
+      <button id="btn-cerrar" onclick="cerrar()">×</button>
+      <button id="btn-fs" onclick="toggleFS()">⤢ expandir</button>
+    </div>
+  </div>
+  <div id="panel-body">
+    <div id="galeria">
+      <img id="panel-img" src="" alt="">
+      <div id="galeria-nav">
+        <button id="galeria-prev" onclick="galeriaNav(-1)">‹</button>
+        <div id="galeria-indicadores"></div>
+        <button id="galeria-next" onclick="galeriaNav(1)">›</button>
+      </div>
+    </div>
+    <p id="panel-txt"></p>
+  </div>
+  <div id="panel-nav-narrativa">
+    <button class="nav-btn" id="btn-prev" onclick="navNarrativa(-1)">← anterior</button>
+    <button class="nav-btn" id="btn-next" onclick="navNarrativa(1)">siguiente →</button>
+  </div>
+  <div id="panel-footer">
+    <div id="footer-label">asociaciones</div>
+    <div id="panel-asocs"></div>
+  </div>
+</div>
+
+<div id="hint"></div>
+
+<script>
+const SURL = 'https://uwduhddojpodzyvipbrq.supabase.co'
+const SKEY = 'sb_publishable_V38s6emQE9jMQ54WhSIlJw_7WzJhGFY'
+const AIS_KEY = 'f233b8fe03520713d0d9f0b013e79324a5195365'
+
+const MB_ESTUDIOS = [
+  { id:'5161274049', tipo:'ballena' },
+  { id:'446603', tipo:'ave' },
+  { id:'5549752586', tipo:'ave' },
+  { id:'5371230531', tipo:'ave' },
+]
+
+const capasOn = { barcos:true, ballenas:true, aves:true, cables:true, conquista:true }
+const ejesOn  = { desastre:true, mitologia:true, geopolitica:true, biologia:true, antropoceno:true }
+
+function toggleCapa(n) {
+  capasOn[n] = !capasOn[n]
+  document.getElementById('capa-'+n).classList.toggle('off', !capasOn[n])
+}
+function toggleEje(n) {
+  ejesOn[n] = !ejesOn[n]
+  document.getElementById('eje-'+n).classList.toggle('off', !ejesOn[n])
+}
+
+const RUTAS_CONQUISTA = [
+  { color:'rgba(255,200,80,', puntos:[[-6,37],[-15,28],[-23,15],[-35,-5],[-38,-15],[-43,-23],[-50,-33],[-52,-38],[-55,-42],[-58,-48],[-63,-52],[-68,-54],[-72,-52],[-75,-48],[-78,-42],[-80,-36],[-80,-20],[-80,-5],[-80,5],[-90,10],[-100,15],[-120,18],[-140,18],[-160,15],[-175,12],[170,10],[150,8],[130,5],[120,8],[110,2],[105,-5],[115,-20],[130,-25],[140,-30],[150,-35],[160,-40],[170,-40],[175,-38],[178,-35],[175,-30],[170,-25],[165,-20],[160,-15],[150,-10],[140,-5],[130,0],[120,5],[110,10],[100,15],[90,20],[80,15],[70,12],[60,15],[50,20],[40,18],[35,12],[30,8],[25,5],[20,0],[15,-5],[10,-10],[5,-5],[0,5],[-5,15],[-6,37]] },
+  { color:'rgba(255,100,60,', puntos:[[-6,37],[-10,33],[-15,28],[-20,24],[-25,22],[-30,20],[-35,18],[-40,18],[-45,18],[-50,18],[-55,18],[-60,18],[-65,18],[-70,18],[-74,20]] },
+  { color:'rgba(80,200,220,', puntos:[[-104,19],[-110,20],[-120,22],[-130,24],[-140,26],[-150,28],[-160,30],[-170,32],[-178,34],[175,36],[165,35],[155,33],[145,30],[135,26],[125,20],[120,14]] },
+  { color:'rgba(180,100,220,', puntos:[[-77,-12],[-78,-15],[-79,-18],[-80,-22],[-80,-28],[-80,-33],[-80,-38],[-71,-42],[-68,-46],[-65,-50],[-62,-52],[-58,-54],[-55,-52],[-52,-48],[-50,-43]] },
+  { color:'rgba(80,220,140,', puntos:[[-9,38],[-10,35],[-12,30],[-15,25],[-16,18],[-17,15],[-17,10],[-16,5],[-14,0],[-12,-5],[-10,-10],[-8,-15],[-5,-20],[-0,-25],[5,-30],[10,-34],[15,-35],[20,-34],[25,-32],[28,-30],[30,-28],[32,-25],[35,-20],[38,-15],[40,-10],[42,-5],[44,0],[46,5],[48,10],[50,15],[55,20],[58,23],[60,22],[65,20],[70,18],[72,15],[74,12]] }
+]
+
+const { createClient } = supabase
+const db = createClient(SURL, SKEY)
+const COLS = { desastre:'#378ADD', mitologia:'#7F77DD', geopolitica:'#D85A30', biologia:'#1D9E75', antropoceno:'#BA7517' }
+const FONT_WORDS = "'Barlow Condensed', sans-serif"
+
+const bgImg = new Image()
+bgImg.crossOrigin = 'anonymous'
+bgImg.src = 'https://uwduhddojpodzyvipbrq.supabase.co/storage/v1/object/public/nun-media/seabed%20sonar%20mapping.jpg'
+
+let nodos=[], conxs=[], narrativas=[], narrativaNodos=[], nc=[]
+let hover=null, seleccionado=null, activo=null
+let historial=[], vivo=false
+let t=0, drag=null, ddx=0, ddy=0, clickX=0, clickY=0
+let narrativaActiva=null
+let galeriaFragmentos=[], galeriaIdx=0
+const barcos=new Map(), animales=[]
+let cables=[], aisWs=null
+
+const cvs=document.getElementById('c')
+const ctx=cvs.getContext('2d')
+const mapa=document.getElementById('mapa')
+const panel=document.getElementById('panel')
+const hint=document.getElementById('hint')
+
+function proyectar(lat,lon){
+  const x=((lon+180)/360)*cvs.width
+  const latRad=Math.min(Math.max(lat,-85),85)*Math.PI/180
+  const mercN=Math.log(Math.tan(Math.PI/4+latRad/2))
+  return[x,(0.5-mercN/(2*Math.PI))*cvs.height]
+}
+
+async function init(){
+  const[{data:n},{data:c},{data:nav},{data:nn}]=await Promise.all([
+    db.from('nodos').select('*').eq('activo',true),
+    db.from('conexiones').select('*'),
+    db.from('narrativas').select('*'),
+    db.from('narrativa_nodos').select('*').order('orden')
+  ])
+  nodos=n||[];conxs=c||[];narrativas=nav||[];narrativaNodos=nn||[]
+  setup()
+}
+
+async function cargarCables(){
+  try{
+    const res=await fetch('/.netlify/functions/cables')
+    if(!res.ok) return
+    const geo=await res.json();cables=[]
+    geo.features?.forEach(f=>{
+      const geom=f.geometry;if(!geom)return
+      const lines=geom.type==='MultiLineString'?geom.coordinates:geom.type==='LineString'?[geom.coordinates]:[]
+      lines.forEach(line=>{const pts=line.map(([lon,lat])=>proyectar(lat,lon));if(pts.length>1)cables.push(pts)})
+    })
+    document.getElementById('cnt-cables').textContent=cables.length||''
+  }catch(e){}
+}
+
+async function cargarMovebank(){
+  for(const est of MB_ESTUDIOS){
+    try{
+      const url=`/.netlify/functions/movebank?study_id=${est.id}`
+      const res=await fetch(url);if(!res.ok)continue
+      const csv=await res.text();const lineas=csv.trim().split('\n');if(lineas.length<2)continue
+      const h=lineas[0].split(',').map(x=>x.replace(/"/g,'').trim())
+      const iLat=h.indexOf('location-lat'),iLon=h.indexOf('location-long'),iId=h.indexOf('individual-local-identifier')
+      if(iLat<0||iLon<0)continue
+      const ind=new Map()
+      for(let i=1;i<lineas.length;i++){
+        const c=lineas[i].split(','),lat=parseFloat(c[iLat]),lon=parseFloat(c[iLon]),id=c[iId]?.replace(/"/g,'')||'x'
+        if(isNaN(lat)||isNaN(lon))continue
+        if(!ind.has(id))ind.set(id,[])
+        ind.get(id).push({lat,lon})
+      }
+      ind.forEach((locs)=>{if(locs.length<2)return;animales.push({lats:locs.map(l=>l.lat),lons:locs.map(l=>l.lon),tipo:est.tipo,animOffset:Math.random()})})
+      const k=est.tipo==='ballena'?'ballenas':'aves'
+      document.getElementById('cnt-'+k).textContent=animales.filter(a=>a.tipo===est.tipo).length||''
+    }catch(e){}
+  }
+}
+
+function conectarAIS(){
+  if(aisWs)aisWs.close()
+  aisWs=new WebSocket('wss://stream.aisstream.io/v0/stream')
+  aisWs.onopen=()=>{aisWs.send(JSON.stringify({APIKey:AIS_KEY,BoundingBoxes:[[[-85,-180],[85,180]]],FilterMessageTypes:['PositionReport']}))}
+  aisWs.onmessage=async(e)=>{
+    try{
+      const text=typeof e.data==='string'?e.data:await e.data.text()
+      const msg=JSON.parse(text);if(msg.MessageType!=='PositionReport')return
+      const pos=msg.Message?.PositionReport;if(!pos)return
+      const lat=pos.Latitude,lon=pos.Longitude;if(!lat||!lon||lat===0||lon===0)return
+      barcos.set(pos.UserId,{lat,lon,heading:pos.TrueHeading||pos.CourseOverGround||0,updated:Date.now()})
+      const ahora=Date.now();barcos.forEach((v,k)=>{if(ahora-v.updated>600000)barcos.delete(k)})
+      document.getElementById('cnt-barcos').textContent=barcos.size||''
+    }catch(e){}
+  }
+  aisWs.onclose=()=>setTimeout(conectarAIS,10000)
+}
+
+function setup(){
+  redim()
+  nc=nodos.map((n,i)=>{
+    const a=(i/nodos.length)*Math.PI*2,r=.2+Math.random()*.22
+    const x=cvs.width/2+Math.cos(a)*cvs.width*r,y=cvs.height/2+Math.sin(a)*cvs.height*r*.62
+    const numC=conxs.filter(c=>c.nodo_origen===n.id||(c.bidireccional&&c.nodo_destino===n.id)).length
+    return{...n,x,y,ox:x,oy:y,fase:Math.random()*Math.PI*2,vel:.18+Math.random()*.25,amp:(4+Math.random()*5)*devicePixelRatio,fs:Math.max(10,10+Math.min(numC,10))*devicePixelRatio}
+  })
+  frame()
+}
+
+function redim(){
+  const w=mapa.offsetWidth,h=window.innerHeight
+  cvs.width=w*devicePixelRatio;cvs.height=h*devicePixelRatio
+  cvs.style.width=w+'px';cvs.style.height=h+'px'
+}
+
+// GALERÍA
+function galeriaSet(fragmentos){
+  galeriaFragmentos=fragmentos
+  galeriaIdx=fragmentos.length>1?Math.floor(Math.random()*fragmentos.length):0
+  galeriaRender()
+}
+
+function galeriaRender(){
+  const f=galeriaFragmentos[galeriaIdx]
+  if(!f){document.getElementById('galeria').classList.add('oculta');return}
+  document.getElementById('galeria').classList.remove('oculta')
+  const img=document.getElementById('panel-img')
+  img.classList.remove('ok')
+  img.src=f.url
+  img.onload=()=>img.classList.add('ok')
+  const cont=document.getElementById('galeria-indicadores')
+  cont.innerHTML=''
+  if(galeriaFragmentos.length>1){
+    galeriaFragmentos.forEach((_,i)=>{
+      const dot=document.createElement('div')
+      dot.className='galeria-dot'+(i===galeriaIdx?' activo':'')
+      dot.onclick=()=>{galeriaIdx=i;galeriaRender()}
+      cont.appendChild(dot)
+    })
+  }
+  document.getElementById('galeria-prev').disabled=galeriaIdx<=0
+  document.getElementById('galeria-next').disabled=galeriaIdx>=galeriaFragmentos.length-1
+  document.getElementById('galeria-nav').style.display=galeriaFragmentos.length>1?'flex':'none'
+}
+
+function galeriaNav(dir){
+  galeriaIdx=Math.max(0,Math.min(galeriaFragmentos.length-1,galeriaIdx+dir))
+  galeriaRender()
+}
+
+// RENDER
+function frame(){
+  t+=.005;ctx.clearRect(0,0,cvs.width,cvs.height)
+  if(bgImg.complete&&bgImg.naturalWidth>0){ctx.save();ctx.globalAlpha=.06;ctx.drawImage(bgImg,0,0,cvs.width,cvs.height);ctx.restore()}
+  const g=ctx.createRadialGradient(cvs.width/2,cvs.height/2,0,cvs.width/2,cvs.height/2,cvs.width*.7)
+  g.addColorStop(0,'rgba(5,8,16,0)');g.addColorStop(1,'rgba(5,8,16,.7)')
+  ctx.fillStyle=g;ctx.fillRect(0,0,cvs.width,cvs.height)
+  nc.forEach(n=>{if(n===drag)return;n.x=n.ox+Math.sin(t*n.vel+n.fase)*n.amp;n.y=n.oy+Math.cos(t*n.vel*.7+n.fase*1.4)*n.amp*.55})
+
+  if(vivo){
+    if(cables.length>0){
+      const al=capasOn.cables?.07:.015
+      ctx.save();ctx.strokeStyle=`rgba(180,220,255,${al})`;ctx.lineWidth=.6*devicePixelRatio
+      cables.forEach(pts=>{ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke()})
+      ctx.restore()
+    }
+    RUTAS_CONQUISTA.forEach((ruta,ri)=>{
+      const alL=capasOn.conquista?.32:.04,alD=capasOn.conquista?.88:.1
+      ctx.save();ctx.setLineDash([4*devicePixelRatio,6*devicePixelRatio]);ctx.lineWidth=.8*devicePixelRatio
+      ctx.beginPath();ruta.puntos.forEach(([lon,lat],i)=>{const[x,y]=proyectar(lat,lon);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)})
+      ctx.strokeStyle=ruta.color+alL+')';ctx.stroke();ctx.setLineDash([])
+      const prog=((t*.05+(ri*.2))%1),total=ruta.puntos.length-1,idx=Math.floor(prog*total),frac=(prog*total)-idx
+      const[lon1,lat1]=ruta.puntos[Math.min(idx,total)],[lon2,lat2]=ruta.puntos[Math.min(idx+1,total)]
+      const[x1,y1]=proyectar(lat1,lon1),[x2,y2]=proyectar(lat2,lon2)
+      const px=x1+(x2-x1)*frac,py=y1+(y2-y1)*frac
+      ctx.beginPath();ctx.arc(px,py,5*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=ruta.color+'.08)';ctx.fill()
+      ctx.beginPath();ctx.arc(px,py,2.5*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=ruta.color+alD+')';ctx.fill()
+      ctx.restore()
+    })
+    animales.forEach(a=>{
+      if(a.lats.length<2)return
+      const esB=a.tipo==='ballena',col=esB?'rgba(100,160,220,':'rgba(150,220,150,',capa=esB?'ballenas':'aves'
+      const alL=capasOn[capa]?.12:.02,alD=capasOn[capa]?.75:.1
+      ctx.beginPath();const[x0,y0]=proyectar(a.lats[0],a.lons[0]);ctx.moveTo(x0,y0)
+      for(let i=1;i<a.lats.length;i++){const[xi,yi]=proyectar(a.lats[i],a.lons[i]);ctx.lineTo(xi,yi)}
+      ctx.strokeStyle=col+alL+')';ctx.lineWidth=.5*devicePixelRatio;ctx.stroke()
+      const prog=((t*.08+a.animOffset)%1),idx=Math.floor(prog*(a.lats.length-1)),frac=(prog*(a.lats.length-1))-idx
+      const[ax,ay]=proyectar(a.lats[idx],a.lons[idx]),[bx,by]=proyectar(a.lats[Math.min(idx+1,a.lats.length-1)],a.lons[Math.min(idx+1,a.lons.length-1)])
+      const px=ax+(bx-ax)*frac,py=ay+(by-ay)*frac
+      ctx.beginPath();ctx.arc(px,py,(esB?3:1.8)*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=col+alD+')';ctx.fill()
+    })
+    const ahora=Date.now()
+    barcos.forEach(b=>{
+      const[bx,by]=proyectar(b.lat,b.lon),edad=(ahora-b.updated)/60000
+      const alBase=capasOn.barcos?Math.max(.06,.32-edad*.04):.03
+      ctx.beginPath();ctx.arc(bx,by,1.8*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=`rgba(180,160,100,${alBase})`;ctx.fill()
+      if(b.heading&&b.heading<360){const rad=(b.heading-90)*Math.PI/180,len=6*devicePixelRatio;ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx+Math.cos(rad)*len,by+Math.sin(rad)*len);ctx.strokeStyle=`rgba(180,160,100,${alBase*.5})`;ctx.lineWidth=.4*devicePixelRatio;ctx.stroke()}
+    })
+    narrativas.forEach(nav=>{
+      const nns=nodosDeNarrativa(nav.id);if(nns.length<2)return
+      const esA=narrativaActiva&&narrativaActiva.id===nav.id
+      for(let i=0;i<nns.length-1;i++){
+        const a=nns[i],b=nns[i+1];if(!a||!b)continue
+        const mx=(a.x+b.x)/2+(b.y-a.y)*.15,my=(a.y+b.y)/2-(b.x-a.x)*.15
+        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(mx,my,b.x,b.y)
+        ctx.strokeStyle=rgba(nav.color,esA?.22:.06);ctx.lineWidth=(esA?1:.5)*devicePixelRatio;ctx.setLineDash([]);ctx.stroke()
+        if(esA){const prog=((t*.35+i*.25)%1),t2=1-prog,px=t2*t2*a.x+2*t2*prog*mx+prog*prog*b.x,py=t2*t2*a.y+2*t2*prog*my+prog*prog*b.y;ctx.beginPath();ctx.arc(px,py,2.5*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=rgba(nav.color,.7);ctx.fill()}
+      }
+    })
+  }
+
+  const ref=hover||seleccionado||activo
+  if(ref){
+    getConns(ref.id).forEach(({nodo:o,peso})=>{
+      if(!o)return
+      const lg=ctx.createLinearGradient(ref.x,ref.y,o.x,o.y)
+      lg.addColorStop(0,rgba(COLS[ref.eje],.6));lg.addColorStop(1,rgba(COLS[o.eje],.2))
+      const mx=(ref.x+o.x)/2+(o.y-ref.y)*.13,my=(ref.y+o.y)/2-(o.x-ref.x)*.13
+      ctx.beginPath();ctx.moveTo(ref.x,ref.y);ctx.quadraticCurveTo(mx,my,o.x,o.y)
+      ctx.strokeStyle=lg;ctx.lineWidth=Math.max(.4,(peso/10)*1.5)*devicePixelRatio
+      ctx.setLineDash([3*devicePixelRatio,5*devicePixelRatio]);ctx.stroke();ctx.setLineDash([])
+      ctx.beginPath();ctx.arc(o.x,o.y,2.5*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=rgba(COLS[o.eje],.5);ctx.fill()
+    })
+  }
+
+  const todosEjesOn=Object.values(ejesOn).every(v=>v)
+  nc.forEach(n=>{
+    const esH=n===hover,esSel=n===seleccionado,esA=n===activo
+    const esConn=ref&&getConns(ref.id).some(c=>c.nodo===n)
+    const enNarrActiva=narrativaActiva&&narrativaNodos.some(nn=>nn.narrativa_id===narrativaActiva.id&&nn.nodo_id===n.id)
+    let esNavVecino=false
+    if(narrativaActiva&&activo){const pA=posEnNarrativa(narrativaActiva.id,activo.id),pN=posEnNarrativa(narrativaActiva.id,n.id);esNavVecino=Math.abs(pN-pA)===1}
+    const ejeActivo=ejesOn[n.eje],ejeApagado=!todosEjesOn&&!ejeActivo
+    const dim=ref&&!esH&&!esSel&&!esA&&!esConn&&!enNarrActiva
+    const fs=(esH||esSel||esA)?n.fs*1.07:n.fs
+    ctx.font=`${(esH||esSel||esA)?400:300} ${fs}px ${FONT_WORDS}`
+    const w=ctx.measureText(n.nombre).width
+    if(esH||esSel||esA||esNavVecino){
+      ctx.beginPath();ctx.ellipse(n.x,n.y,w/2+16*devicePixelRatio,fs/2+9*devicePixelRatio,0,0,Math.PI*2)
+      ctx.fillStyle=rgba(esNavVecino&&narrativaActiva?narrativaActiva.color:COLS[n.eje],(esA||esSel)?.09:.04);ctx.fill()
+    }
+    let al
+    if(esH)al=1
+    else if(esA)al=.95
+    else if(esSel)al=.9
+    else if(esNavVecino)al=.82
+    else if(esConn)al=.72
+    else if(enNarrActiva)al=.45
+    else if(dim)al=.06
+    else if(ejeApagado)al=.1
+    else if(!todosEjesOn&&ejeActivo)al=vivo?.88:0
+    else al=vivo?.52:0
+    const col=(esNavVecino&&narrativaActiva)?narrativaActiva.color:COLS[n.eje]
+    ctx.fillStyle=rgba(col,al);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(n.nombre,n.x,n.y)
+    if(esH||esSel||esA||esConn||esNavVecino){
+      ctx.beginPath();ctx.moveTo(n.x-w/2,n.y+fs/2+2*devicePixelRatio);ctx.lineTo(n.x+w/2,n.y+fs/2+2*devicePixelRatio)
+      ctx.strokeStyle=rgba(col,(esH||esSel||esA)?.65:.25);ctx.lineWidth=((esH||esSel||esA)?1:.4)*devicePixelRatio;ctx.stroke()
+    }
+  })
+  requestAnimationFrame(frame)
+}
+
+function nodosDeNarrativa(navId){return narrativaNodos.filter(nn=>nn.narrativa_id===navId).sort((a,b)=>a.orden-b.orden).map(nn=>nc.find(n=>n.id===nn.nodo_id)).filter(Boolean)}
+function narrativasDeNodo(nodoId){const navIds=[...new Set(narrativaNodos.filter(nn=>nn.nodo_id===nodoId).map(nn=>nn.narrativa_id))];return narrativas.filter(nav=>navIds.includes(nav.id))}
+function posEnNarrativa(navId,nodoId){const nn=narrativaNodos.find(n=>n.narrativa_id===navId&&n.nodo_id===nodoId);return nn?nn.orden:-1}
+function getConns(id){
+  return conxs.filter(c=>c.nodo_origen===id||(c.bidireccional&&c.nodo_destino===id))
+    .map(c=>{const did=c.nodo_origen===id?c.nodo_destino:c.nodo_origen;const bon=historial.filter(h=>h===did).length*1.5;return{nodo:nc.find(n=>n.id===did),peso:Math.min(10,c.peso+bon),tipo:c.tipo_relacion}})
+    .filter(c=>c.nodo).sort((a,b)=>b.peso-a.peso)
+}
+function rgba(hex,a){return`rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a})`}
+
+function seleccionar(nodo){
+  if(seleccionado===nodo){abrirPanel(nodo);return}
+  seleccionado=nodo;narrativaActiva=narrativasDeNodo(nodo.id)[0]||null
+  hint.textContent=`∿ click de nuevo para explorar ${nodo.nombre}`
+  hint.style.opacity='1';setTimeout(()=>{hint.style.opacity='0'},2500)
+}
+
+async function abrirPanel(nodo){
+  activo=nodo;seleccionado=nodo;historial.push(nodo.id);hint.style.opacity='0'
+  narrativaActiva=narrativasDeNodo(nodo.id)[0]||null
+  mapa.classList.add('partido');panel.classList.add('visible');setTimeout(redim,680)
+  document.getElementById('panel-nombre').textContent=nodo.nombre
+  const ejEl=document.getElementById('panel-eje');ejEl.textContent=nodo.eje;ejEl.style.color=COLS[nodo.eje]
+  const navBadge=document.getElementById('panel-narrativa')
+  if(narrativaActiva){document.getElementById('panel-narrativa-nombre').textContent=narrativaActiva.nombre;document.getElementById('panel-narrativa-dot').style.background=narrativaActiva.color;navBadge.classList.add('visible')}
+  else{navBadge.classList.remove('visible')}
+  const navNav=document.getElementById('panel-nav-narrativa')
+  if(narrativaActiva){
+    const nns=nodosDeNarrativa(narrativaActiva.id),idx=nns.findIndex(n=>n.id===nodo.id)
+    navNav.classList.add('visible');document.getElementById('btn-prev').disabled=idx<=0;document.getElementById('btn-next').disabled=idx>=nns.length-1
+  }else{navNav.classList.remove('visible')}
+  document.getElementById('panel-txt').textContent=nodo.texto_principal||''
+
+  // cargar fragmentos
+  const{data:frags}=await db.from('fragmentos').select('*')
+    .eq('nodo_id',nodo.id).eq('tipo','imagen').is('contexto_previo',null).order('orden')
+  if(frags&&frags.length>0){
+    galeriaSet(frags)
+  } else if(historial.length>1){
+    const prev=historial[historial.length-2]
+    const{data:cf}=await db.from('fragmentos').select('*').eq('nodo_id',nodo.id).eq('contexto_previo',prev).limit(1)
+    if(cf?.length)galeriaSet(cf)
+    else document.getElementById('galeria').classList.add('oculta')
+  } else {
+    document.getElementById('galeria').classList.add('oculta')
+  }
+
+  const lista=document.getElementById('panel-asocs');lista.innerHTML=''
+  getConns(nodo.id).slice(0,7).forEach(({nodo:o,peso,tipo})=>{
+    if(!o)return
+    const enNav=narrativaActiva&&narrativaNodos.some(nn=>nn.narrativa_id===narrativaActiva.id&&nn.nodo_id===o.id)
+    const col=enNav&&narrativaActiva?narrativaActiva.color:COLS[o.eje]
+    const el=document.createElement('div')
+    el.style.cssText=`display:flex;align-items:center;gap:.6rem;margin-bottom:.85rem;cursor:pointer;opacity:.35;transition:opacity .3s;`
+    el.onmouseenter=()=>el.style.opacity=1;el.onmouseleave=()=>el.style.opacity=.35
+    el.innerHTML=`<div style="width:${peso*3}px;height:1px;background:${col};opacity:.5;flex-shrink:0"></div><span style="font-size:.75rem;letter-spacing:.06em;color:${col};font-family:'Barlow Condensed',sans-serif;font-weight:300">${o.nombre}</span><span style="font-size:.48rem;letter-spacing:.2em;color:rgba(255,255,255,.15);text-transform:lowercase">${tipo||''}</span>${enNav?`<span style="font-size:.42rem;color:${col};opacity:.6">∿</span>`:''}`
+    el.onclick=()=>{seleccionado=o;abrirPanel(o)}
+    lista.appendChild(el)
+  })
+}
+
+function navNarrativa(dir){
+  if(!narrativaActiva||!activo)return
+  const nns=nodosDeNarrativa(narrativaActiva.id),idx=nns.findIndex(n=>n.id===activo.id)
+  const sig=nns[idx+dir];if(sig){seleccionado=sig;abrirPanel(sig)}
+}
+
+function cerrar(){
+  panel.classList.remove('visible','fullscreen');mapa.classList.remove('partido')
+  activo=null;seleccionado=null;narrativaActiva=null
+  document.getElementById('btn-fs').textContent='⤢ expandir'
+  setTimeout(redim,680)
+}
+
+function toggleFS(){
+  const esFull=panel.classList.toggle('fullscreen')
+  if(esFull){
+    mapa.classList.remove('partido')
+    document.getElementById('btn-fs').textContent='⤡ contraer'
+  } else {
+    mapa.classList.add('partido')
+    document.getElementById('btn-fs').textContent='⤢ expandir'
+  }
+  setTimeout(redim,680)
+}
+
+function hundirse(){
+  const v=document.getElementById('velo');v.classList.add('on')
+  setTimeout(()=>{
+    document.getElementById('superficie').classList.add('oculto');vivo=true
+    document.getElementById('capas-ui').classList.add('visible')
+    document.getElementById('ejes-ui').classList.add('visible')
+    v.classList.remove('on');conectarAIS();cargarMovebank();cargarCables()
+  },700)
+}
+
+function find(px,py){
+  return nc.slice().reverse().find(n=>{
+    ctx.font=`300 ${n.fs}px ${FONT_WORDS}`;const w=ctx.measureText(n.nombre).width,m=14*devicePixelRatio
+    return px>=n.x-w/2-m&&px<=n.x+w/2+m&&py>=n.y-n.fs/2-m&&py<=n.y+n.fs/2+m
+  })
+}
+function pos(e){const r=cvs.getBoundingClientRect(),touch=e.touches?.[0]||e;return[(touch.clientX-r.left)*devicePixelRatio,(touch.clientY-r.top)*devicePixelRatio]}
+
+cvs.addEventListener('mousemove',e=>{
+  if(!vivo)return;const[px,py]=pos(e);hover=find(px,py)||null;cvs.style.cursor=hover?'pointer':'default'
+  if(drag){drag.ox=(px-ddx)/devicePixelRatio;drag.oy=(py-ddy)/devicePixelRatio}
+})
+cvs.addEventListener('mouseleave',()=>{hover=null})
+cvs.addEventListener('mousedown',e=>{const[px,py]=pos(e);clickX=px;clickY=py;const n=find(px,py);if(n){drag=n;ddx=px-n.ox*devicePixelRatio;ddy=py-n.oy*devicePixelRatio}})
+cvs.addEventListener('mouseup',e=>{
+  const[px,py]=pos(e),moved=Math.hypot(px-clickX,py-clickY)>5*devicePixelRatio,n=find(px,py)
+  if(n&&!moved){seleccionar(n)}else if(!n&&!moved){seleccionado=null;activo=null;narrativaActiva=null;if(panel.classList.contains('visible'))cerrar()}
+  drag=null
+})
+cvs.addEventListener('touchstart',e=>{
+  if(!vivo)return;const[px,py]=pos(e),n=find(px,py)
+  if(n){seleccionar(n)}else{seleccionado=null;activo=null;narrativaActiva=null;if(panel.classList.contains('visible'))cerrar()}
+},{passive:true})
+window.addEventListener('resize',redim)
+init()
+</script>
+</body>
+</html>
