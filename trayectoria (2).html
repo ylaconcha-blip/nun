@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NùN — trayectoria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@200;300;400&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root { --bg:#050810; }
+body { background:var(--bg); font-family:'Inter',sans-serif; overflow:hidden; width:100vw; height:100vh; }
+canvas { position:fixed; inset:0; width:100%; height:100%; cursor:default; }
+
+#nav {
+  position:fixed; top:1.8rem; left:2rem; right:2rem;
+  display:flex; align-items:center; justify-content:space-between; z-index:100;
+  pointer-events:none;
+}
+#nav > * { pointer-events:all; }
+#nav-titulo {
+  font-family:'Barlow Condensed',sans-serif; font-size:1.1rem;
+  font-weight:200; letter-spacing:.4em; color:rgba(255,255,255,.5);
+  text-decoration:none; text-transform:lowercase;
+}
+#nav-titulo span { color:rgba(255,255,255,.2); }
+#nav-links { display:flex; gap:2rem; }
+#nav-links a {
+  color:rgba(255,255,255,.2); text-decoration:none; font-size:.55rem;
+  letter-spacing:.35em; text-transform:lowercase; transition:color .4s; font-weight:300;
+}
+#nav-links a:hover, #nav-links a.activo { color:rgba(255,255,255,.6); }
+
+/* CAPAS */
+#capas {
+  position:fixed; top:5rem; left:2rem;
+  display:flex; flex-direction:column; gap:.55rem; z-index:100;
+}
+.capa {
+  display:flex; align-items:center; gap:.6rem;
+  cursor:pointer; user-select:none; transition:opacity .3s;
+}
+.capa.off { opacity:.18; }
+.capa:hover { opacity:1 !important; }
+.capa-sym { width:10px; height:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.capa-info { display:flex; flex-direction:column; gap:.12rem; }
+.capa-nombre { font-size:.48rem; letter-spacing:.25em; text-transform:lowercase; color:rgba(255,255,255,.75); font-weight:300; }
+.capa-estado { font-size:.36rem; letter-spacing:.18em; color:rgba(255,255,255,.22); font-weight:300; }
+.sep { height:1px; background:rgba(255,255,255,.05); margin:.15rem 0; }
+
+/* INFO PANEL */
+#info {
+  position:fixed; top:50%; right:2rem; transform:translateY(-50%);
+  width:240px; background:rgba(4,7,18,.96);
+  border:1px solid rgba(255,255,255,.07);
+  padding:1.4rem; z-index:100;
+  opacity:0; pointer-events:none; transition:opacity .35s;
+}
+#info.visible { opacity:1; pointer-events:all; }
+#info-x {
+  position:absolute; top:.7rem; right:.7rem;
+  background:none; border:none; color:rgba(255,255,255,.25);
+  cursor:pointer; font-size:1.1rem; transition:color .25s;
+}
+#info-x:hover { color:white; }
+#info-tag { font-size:.4rem; letter-spacing:.35em; text-transform:lowercase; color:rgba(255,255,255,.25); margin-bottom:.7rem; font-weight:300; }
+#info-title { font-family:'Barlow Condensed',sans-serif; font-size:1.3rem; font-weight:300; letter-spacing:.1em; color:white; margin-bottom:.9rem; line-height:1.1; }
+#info-rows { display:flex; flex-direction:column; gap:.4rem; }
+.ir { display:flex; justify-content:space-between; padding-bottom:.35rem; border-bottom:1px solid rgba(255,255,255,.04); }
+.ik { font-size:.42rem; letter-spacing:.18em; color:rgba(255,255,255,.28); font-weight:300; text-transform:lowercase; }
+.iv { font-size:.46rem; letter-spacing:.08em; color:rgba(255,255,255,.68); font-weight:300; text-align:right; max-width:58%; }
+
+/* STATS */
+#stats {
+  position:fixed; bottom:1.8rem; right:2rem;
+  display:flex; flex-direction:column; gap:.25rem; align-items:flex-end; z-index:100;
+}
+.st { font-size:.4rem; letter-spacing:.18em; color:rgba(255,255,255,.22); font-weight:300; }
+
+/* LOADING */
+#loading {
+  position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  z-index:200; background:var(--bg); transition:opacity 1.2s ease;
+}
+#loading.out { opacity:0; pointer-events:none; }
+#loading-txt {
+  font-family:'Barlow Condensed',sans-serif; font-size:.9rem;
+  letter-spacing:.45em; color:rgba(255,255,255,.25); text-transform:lowercase;
+  animation:pu 2s ease infinite;
+}
+@keyframes pu { 0%,100%{opacity:.25} 50%{opacity:.75} }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="loading"><div id="loading-txt">conectando</div></div>
+
+<div id="nav">
+  <a href="/" id="nav-titulo">NùN <span>/ trayectoria</span></a>
+  <div id="nav-links">
+    <a href="/">mapa</a>
+    <a href="/trayectoria.html" class="activo">trayectoria</a>
+  </div>
+</div>
+
+<div id="capas">
+  <!-- barcos -->
+  <div class="capa" id="cl-barcos" onclick="tog('barcos')">
+    <div class="capa-sym">
+      <svg width="10" height="10" viewBox="0 0 10 10">
+        <polygon points="5,0 9,10 5,7 1,10" fill="rgba(180,160,100,.9)"/>
+      </svg>
+    </div>
+    <div class="capa-info">
+      <span class="capa-nombre">tráfico marítimo</span>
+      <span class="capa-estado" id="es-barcos">conectando…</span>
+    </div>
+  </div>
+  <div class="sep"></div>
+  <!-- ballenas -->
+  <div class="capa" id="cl-ballenas" onclick="tog('ballenas')">
+    <div class="capa-sym">
+      <div style="width:7px;height:7px;border-radius:50%;background:rgba(100,160,220,.9)"></div>
+    </div>
+    <div class="capa-info">
+      <span class="capa-nombre">ballenas</span>
+      <span class="capa-estado" id="es-ballenas">cargando…</span>
+    </div>
+  </div>
+  <!-- aves -->
+  <div class="capa" id="cl-aves" onclick="tog('aves')">
+    <div class="capa-sym">
+      <div style="width:7px;height:7px;border-radius:50%;background:rgba(150,220,150,.9)"></div>
+    </div>
+    <div class="capa-info">
+      <span class="capa-nombre">aves migratorias</span>
+      <span class="capa-estado" id="es-aves">cargando…</span>
+    </div>
+  </div>
+  <!-- tortugas -->
+  <div class="capa" id="cl-tortugas" onclick="tog('tortugas')">
+    <div class="capa-sym">
+      <div style="width:7px;height:7px;border-radius:50%;background:rgba(220,180,80,.9)"></div>
+    </div>
+    <div class="capa-info">
+      <span class="capa-nombre">tortugas marinas</span>
+      <span class="capa-estado" id="es-tortugas">cargando…</span>
+    </div>
+  </div>
+  <div class="sep"></div>
+  <!-- sismos -->
+  <div class="capa" id="cl-sismos" onclick="tog('sismos')">
+    <div class="capa-sym">
+      <div style="width:7px;height:7px;border-radius:50%;border:1px solid rgba(220,80,80,.8)"></div>
+    </div>
+    <div class="capa-info">
+      <span class="capa-nombre">sismos USGS</span>
+      <span class="capa-estado" id="es-sismos">cargando…</span>
+    </div>
+  </div>
+  <!-- avistamientos -->
+  <div class="capa" id="cl-avistamientos" onclick="tog('avistamientos')">
+    <div class="capa-sym">
+      <div style="width:7px;height:7px;border-radius:50%;background:rgba(180,100,220,.7)"></div>
+    </div>
+    <div class="capa-info">
+      <span class="capa-nombre">avistamientos cetáceos</span>
+      <span class="capa-estado" id="es-avistamientos">cargando…</span>
+    </div>
+  </div>
+</div>
+
+<div id="info">
+  <button id="info-x" onclick="cerrarInfo()">×</button>
+  <div id="info-tag"></div>
+  <div id="info-title"></div>
+  <div id="info-rows"></div>
+</div>
+
+<div id="stats">
+  <div class="st" id="st-b"></div>
+  <div class="st" id="st-a"></div>
+  <div class="st" id="st-s"></div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────
+const AIS_KEY = 'f233b8fe03520713d0d9f0b013e79324a5195365'
+const TRAIL_MAX = 10      // puntos de estela por barco
+const BARCO_SIZE = 2.2    // tamaño triángulo en px lógicos
+const EXPIRE_MS = 900000  // 15 min sin señal → eliminar
+
+const MB_ESTUDIOS = [
+  { id:'5161274049', tipo:'ballena', especie:'Megaptera novaeangliae', nombre:'jorobada Pacífico' },
+  { id:'446603',     tipo:'ave',     especie:'Puffinus creatopus',     nombre:'pardela patas rosadas' },
+  { id:'5549752586', tipo:'ave',     especie:'Sula variegata',         nombre:'piquero peruano' },
+  { id:'5371230531', tipo:'ave',     especie:'Spheniscus humboldti',   nombre:'pingüino de Humboldt' },
+  { id:'2911040',    tipo:'ave',     especie:'Phoebastria irrorata',   nombre:'albatros de Galápagos' },
+  { id:'492444603',  tipo:'tortuga', especie:'Chelonia mydas',         nombre:'tortuga verde Pacífico' },
+  { id:'1381110575', tipo:'tortuga', especie:'Numenius tahitiensis',   nombre:'Kivi Kuaka' },
+]
+
+// ── ESTADO ────────────────────────────────────────────────────────
+const on = { barcos:true, ballenas:true, aves:true, tortugas:true, sismos:true, avistamientos:true }
+function tog(n){ on[n]=!on[n]; document.getElementById('cl-'+n).classList.toggle('off',!on[n]) }
+
+// barcos: mmsi(string) → { trail:[{lat,lon}], heading, speed, nombre, shipType, callSign, updated }
+const barcos = new Map()
+
+const animales  = []  // { lats[], lons[], tipo, especie, nombreEstudio, individuoId, lastDate, animOffset }
+const sismos    = []  // { lat, lon, dep, mag, lugar, time }
+const avistamientos = []
+
+let aisWs = null
+let t = 0
+let hoverEl = null
+let infoEl  = null
+
+const cvs = document.getElementById('c')
+const ctx  = cvs.getContext('2d')
+
+// ── PROYECCIÓN — meridiano 0 centrado ────────────────────────────
+function proy(lat, lon) {
+  // lon 0 → x = 0.5 * width
+  const nx = (lon / 360 + 0.5)
+  const x  = ((nx % 1) + 1) % 1 * cvs.width   // wrap 0-1
+  const φ  = Math.min(Math.max(lat, -85), 85) * Math.PI / 180
+  const y  = (0.5 - Math.log(Math.tan(Math.PI/4 + φ/2)) / (2*Math.PI)) * cvs.height
+  return [x, y]
+}
+
+// ── AIS ───────────────────────────────────────────────────────────
+const SHIP_TYPES = {
+  30:'pesca', 31:'remolcador', 32:'remolcador', 33:'draga', 34:'buceo',
+  35:'militar', 36:'vela', 37:'recreo', 40:'HSC', 50:'piloto',
+  51:'SAR', 52:'remolcador', 60:'pasajeros', 70:'carga',
+  80:'tanquero', 90:'otro'
+}
+function tipoBarco(n){ return SHIP_TYPES[Math.floor((n||0)/10)*10] || SHIP_TYPES[n] || 'embarcación' }
+
+function conectarAIS(){
+  if(aisWs){ try{ aisWs.close() }catch(e){} }
+  aisWs = new WebSocket('wss://stream.aisstream.io/v0/stream')
+
+  aisWs.onopen = () => {
+    document.getElementById('es-barcos').textContent = 'conectado'
+    aisWs.send(JSON.stringify({
+      APIKey: AIS_KEY,
+      BoundingBoxes: [[[-85,-180],[85,180]]],
+      FilterMessageTypes: ['PositionReport','ShipStaticData']
+    }))
+    // ocultar loading tras conexión
+    setTimeout(()=>document.getElementById('loading').classList.add('out'), 1200)
+  }
+
+  aisWs.onmessage = async (e) => {
+    try {
+      const raw  = typeof e.data === 'string' ? e.data : await e.data.text()
+      const msg  = JSON.parse(raw)
+      const mmsi = String(msg.MetaData?.MMSI || '')
+      if (!mmsi) return
+
+      if (msg.MessageType === 'PositionReport') {
+        const p = msg.Message?.PositionReport
+        if (!p) return
+        const lat = p.Latitude, lon = p.Longitude
+        if (!lat || !lon || (lat===0 && lon===0)) return
+        if (Math.abs(lat) > 85) return
+
+        const b = barcos.get(mmsi) || { trail:[], heading:0, speed:0, nombre:'', shipType:0, callSign:'', updated:0 }
+        // añadir punto al trail solo si hay desplazamiento mínimo
+        const last = b.trail[b.trail.length-1]
+        if (!last || Math.hypot(lat-last.lat, lon-last.lon) > 0.002) {
+          b.trail.push({ lat, lon })
+          if (b.trail.length > TRAIL_MAX) b.trail.shift()
+        }
+        b.heading = p.TrueHeading < 360 ? p.TrueHeading : (p.CourseOverGround || 0)
+        b.speed   = p.SpeedOverGround || 0
+        b.updated = Date.now()
+        barcos.set(mmsi, b)
+
+      } else if (msg.MessageType === 'ShipStaticData') {
+        const s = msg.Message?.ShipStaticData
+        if (!s) return
+        const b = barcos.get(mmsi) || { trail:[], heading:0, speed:0, nombre:'', shipType:0, callSign:'', updated:Date.now() }
+        b.nombre   = (s.Name||'').trim()
+        b.shipType = s.Type || 0
+        b.callSign = (s.CallSign||'').trim()
+        barcos.set(mmsi, b)
+      }
+
+      // limpiar expirados
+      const now = Date.now()
+      barcos.forEach((v,k)=>{ if(now-v.updated > EXPIRE_MS) barcos.delete(k) })
+
+      // actualizar UI
+      const vivos = barcos.size
+      document.getElementById('es-barcos').textContent = `${vivos} activos`
+      document.getElementById('st-b').textContent      = `${vivos} barcos`
+    } catch(err){}
+  }
+
+  aisWs.onerror = () => {}
+  aisWs.onclose = () => {
+    document.getElementById('es-barcos').textContent = 'reconectando…'
+    setTimeout(conectarAIS, 8000)
+  }
+}
+
+// ── MOVEBANK ──────────────────────────────────────────────────────
+async function cargarMovebank(){
+  for (const est of MB_ESTUDIOS){
+    try {
+      const res = await fetch(`/.netlify/functions/movebank?study_id=${est.id}`)
+      if (!res.ok) continue
+      const csv    = await res.text()
+      const lineas = csv.trim().split('\n')
+      if (lineas.length < 2) continue
+      const h    = lineas[0].split(',').map(x=>x.replace(/"/g,'').trim())
+      const iLat = h.indexOf('location-lat')
+      const iLon = h.indexOf('location-long')
+      const iId  = h.indexOf('individual-local-identifier')
+      const iTs  = h.indexOf('timestamp')
+      if (iLat<0||iLon<0) continue
+
+      const ind = new Map()
+      for (let i=1; i<lineas.length; i++){
+        const cols = lineas[i].split(',')
+        const lat  = parseFloat(cols[iLat])
+        const lon  = parseFloat(cols[iLon])
+        const id   = (cols[iId]||'').replace(/"/g,'') || 'x'
+        const ts   = (cols[iTs]||'').replace(/"/g,'')
+        if (isNaN(lat)||isNaN(lon)) continue
+        if (!ind.has(id)) ind.set(id,{locs:[],lastDate:''})
+        const entry = ind.get(id)
+        entry.locs.push({lat,lon})
+        if (ts > entry.lastDate) entry.lastDate = ts
+      }
+
+      ind.forEach((d,id)=>{
+        if (d.locs.length < 2) return
+        animales.push({
+          lats: d.locs.map(l=>l.lat),
+          lons: d.locs.map(l=>l.lon),
+          tipo: est.tipo, especie: est.especie,
+          nombreEstudio: est.nombre,
+          individuoId: id, lastDate: d.lastDate,
+          animOffset: Math.random()
+        })
+      })
+
+      const clave = est.tipo==='ballena' ? 'ballenas' : est.tipo==='tortuga' ? 'tortugas' : 'aves'
+      const n = animales.filter(a=>a.tipo===est.tipo).length
+      document.getElementById('es-'+clave).textContent = `${n} individuos`
+    } catch(err){}
+  }
+  document.getElementById('st-a').textContent = `${animales.length} animales rastreados`
+}
+
+// ── SISMOS ────────────────────────────────────────────────────────
+async function cargarSismos(){
+  try {
+    const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson')
+    if (!res.ok) return
+    const geo = await res.json()
+    geo.features?.forEach(f=>{
+      const [lon,lat,dep] = f.geometry.coordinates
+      sismos.push({ lat,lon,dep,mag:f.properties.mag, lugar:f.properties.place,
+        time: new Date(f.properties.time).toLocaleDateString('es-CL') })
+    })
+    document.getElementById('es-sismos').textContent = `${sismos.length} (7 días)`
+    document.getElementById('st-s').textContent = `${sismos.length} sismos M2.5+`
+  } catch(e){ document.getElementById('es-sismos').textContent='error' }
+}
+
+// ── AVISTAMIENTOS ─────────────────────────────────────────────────
+async function cargarAvistamientos(){
+  try {
+    const res = await fetch('https://api.obis.org/v3/occurrence?taxonid=2688&size=300&fields=decimalLatitude,decimalLongitude,scientificName,eventDate,datasetName')
+    if (!res.ok) return
+    const data = await res.json()
+    data.results?.forEach(r=>{
+      if (!r.decimalLatitude||!r.decimalLongitude) return
+      avistamientos.push({lat:r.decimalLatitude,lon:r.decimalLongitude,
+        especie:r.scientificName||'cetáceo',fecha:r.eventDate||'',dataset:r.datasetName||''})
+    })
+    document.getElementById('es-avistamientos').textContent = `${avistamientos.length} registros`
+  } catch(e){ document.getElementById('es-avistamientos').textContent='sin datos' }
+}
+
+// ── DIBUJAR TRIÁNGULO ─────────────────────────────────────────────
+function drawTriangle(x, y, headingDeg, alpha, scale){
+  const rad = (headingDeg - 90) * Math.PI / 180
+  const s   = BARCO_SIZE * scale * devicePixelRatio
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(rad)
+  ctx.beginPath()
+  ctx.moveTo(0, -s*1.7)
+  ctx.lineTo(-s*.75, s)
+  ctx.lineTo(0, s*.35)
+  ctx.lineTo(s*.75, s)
+  ctx.closePath()
+  ctx.fillStyle = `rgba(180,160,100,${alpha})`
+  ctx.fill()
+  ctx.restore()
+}
+
+// ── RENDER ────────────────────────────────────────────────────────
+function redim(){
+  cvs.width  = window.innerWidth  * devicePixelRatio
+  cvs.height = window.innerHeight * devicePixelRatio
+  cvs.style.width  = window.innerWidth  + 'px'
+  cvs.style.height = window.innerHeight + 'px'
+}
+
+let lastNow = performance.now()
+
+function frame(now){
+  const dt = (now - lastNow) / 1000; lastNow = now
+  t += dt
+
+  ctx.clearRect(0,0,cvs.width,cvs.height)
+
+  // fondo radial
+  const g = ctx.createRadialGradient(cvs.width/2,cvs.height/2,0,cvs.width/2,cvs.height/2,cvs.width*.65)
+  g.addColorStop(0,'rgba(8,15,40,0.3)'); g.addColorStop(1,'rgba(5,8,16,0)')
+  ctx.fillStyle=g; ctx.fillRect(0,0,cvs.width,cvs.height)
+
+  // ── AVISTAMIENTOS ──
+  if (on.avistamientos){
+    avistamientos.forEach(a=>{
+      const [x,y]=proy(a.lat,a.lon)
+      const isH = hoverEl===a
+      ctx.beginPath(); ctx.arc(x,y,(isH?5:2.5)*devicePixelRatio,0,Math.PI*2)
+      ctx.fillStyle = isH ? 'rgba(180,100,220,0.9)' : 'rgba(180,100,220,0.3)'
+      ctx.fill()
+      if (isH){
+        const p = Math.sin(t*4)*.5+.5
+        ctx.beginPath(); ctx.arc(x,y,(5+p*6)*devicePixelRatio,0,Math.PI*2)
+        ctx.strokeStyle=`rgba(180,100,220,${.12+p*.18})`; ctx.lineWidth=1*devicePixelRatio; ctx.stroke()
+      }
+    })
+  }
+
+  // ── SISMOS ──
+  if (on.sismos){
+    sismos.forEach(s=>{
+      const [x,y]=proy(s.lat,s.lon)
+      const r    = Math.max(1.5, s.mag*1.6) * devicePixelRatio
+      const isH  = hoverEl===s
+      // anillo estático proporcional a magnitud
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2)
+      ctx.strokeStyle=`rgba(220,80,80,${isH?.4:.12})`; ctx.lineWidth=.8*devicePixelRatio; ctx.stroke()
+      // punto central
+      ctx.beginPath(); ctx.arc(x,y,Math.max(.8,r*.35),0,Math.PI*2)
+      ctx.fillStyle=`rgba(220,80,80,${isH?.9:.35+s.mag*.04})`; ctx.fill()
+      // aureola hover
+      if (isH){
+        const p=Math.sin(t*4)*.5+.5
+        ctx.beginPath(); ctx.arc(x,y,(r+p*r*.8),0,Math.PI*2)
+        ctx.strokeStyle=`rgba(220,80,80,${.1+p*.2})`; ctx.lineWidth=1*devicePixelRatio; ctx.stroke()
+      }
+    })
+  }
+
+  // ── ANIMALES ──
+  const capasAnim = [
+    { tipo:'ballena', capa:'ballenas', col:[100,160,220], r:2.5 },
+    { tipo:'ave',     capa:'aves',     col:[150,220,150], r:1.6 },
+    { tipo:'tortuga', capa:'tortugas', col:[220,180,80],  r:2.0 },
+  ]
+  capasAnim.forEach(({tipo,capa,col,r})=>{
+    if (!on[capa]) return
+    const [cr,cg,cb] = col
+    animales.filter(a=>a.tipo===tipo).forEach(a=>{
+      const isH = hoverEl===a
+      // track
+      if (a.lats.length>1){
+        ctx.beginPath()
+        const [x0,y0]=proy(a.lats[0],a.lons[0]); ctx.moveTo(x0,y0)
+        for(let i=1;i<a.lats.length;i++){
+          const[xi,yi]=proy(a.lats[i],a.lons[i]); ctx.lineTo(xi,yi)
+        }
+        ctx.strokeStyle=`rgba(${cr},${cg},${cb},${isH?.18:.07})`
+        ctx.lineWidth=(isH?.7:.35)*devicePixelRatio; ctx.stroke()
+      }
+      // punto animado a lo largo del track
+      const prog = ((t*.04 + a.animOffset) % 1)
+      const n    = a.lats.length - 1
+      const idx  = Math.floor(prog*n)
+      const frac = prog*n - idx
+      const [ax,ay]=proy(a.lats[idx],a.lons[idx])
+      const [bx,by]=proy(a.lats[Math.min(idx+1,n)],a.lons[Math.min(idx+1,n)])
+      const px=ax+(bx-ax)*frac, py=ay+(by-ay)*frac
+      // aureola hover
+      if (isH){
+        const p=Math.sin(t*4)*.5+.5
+        ctx.beginPath(); ctx.arc(px,py,(r*2.5+p*r)*devicePixelRatio,0,Math.PI*2)
+        ctx.strokeStyle=`rgba(${cr},${cg},${cb},${.1+p*.2})`; ctx.lineWidth=1*devicePixelRatio; ctx.stroke()
+      }
+      ctx.beginPath(); ctx.arc(px,py,(isH?r*1.5:r)*devicePixelRatio,0,Math.PI*2)
+      ctx.fillStyle=`rgba(${cr},${cg},${cb},${isH?.95:.75})`; ctx.fill()
+    })
+  })
+
+  // ── BARCOS ──
+  if (on.barcos){
+    const now = Date.now()
+    barcos.forEach((b, mmsi)=>{
+      if (b.trail.length === 0) return
+      const edad   = (now - b.updated) / 60000  // minutos
+      const alphaB = Math.max(.05, .45 - edad * .03)
+      const isH    = hoverEl && hoverEl._mmsi === mmsi
+
+      // estela histórica
+      if (b.trail.length > 1){
+        for (let i=1; i<b.trail.length; i++){
+          const [x0,y0] = proy(b.trail[i-1].lat, b.trail[i-1].lon)
+          const [x1,y1] = proy(b.trail[i].lat,   b.trail[i].lon)
+          // saltar si el segmento cruza el antimeridiano (diferencia > mitad de pantalla)
+          if (Math.abs(x1-x0) > cvs.width*.4) continue
+          const a = (i / b.trail.length) * alphaB * (isH?1.8:1)
+          ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1)
+          ctx.strokeStyle=`rgba(180,160,100,${a})`
+          ctx.lineWidth=(isH?.6:.3)*devicePixelRatio; ctx.stroke()
+        }
+      }
+
+      // triángulo en posición actual
+      const last = b.trail[b.trail.length-1]
+      const [tx,ty] = proy(last.lat, last.lon)
+
+      // aureola hover
+      if (isH){
+        const p=Math.sin(t*4)*.5+.5
+        ctx.beginPath(); ctx.arc(tx,ty,(BARCO_SIZE*3+p*BARCO_SIZE*2)*devicePixelRatio,0,Math.PI*2)
+        ctx.strokeStyle=`rgba(180,160,100,${.12+p*.2})`; ctx.lineWidth=1*devicePixelRatio; ctx.stroke()
+      }
+
+      drawTriangle(tx, ty, b.heading||0, isH ? .95 : alphaB, isH ? 1.6 : 1)
+    })
+  }
+
+  requestAnimationFrame(frame)
+}
+
+// ── DETECCIÓN ─────────────────────────────────────────────────────
+function getPos(e){
+  const r=cvs.getBoundingClientRect(), touch=e.touches?.[0]||e
+  return [(touch.clientX-r.left)*devicePixelRatio,(touch.clientY-r.top)*devicePixelRatio]
+}
+
+function buscar(px,py){
+  const R = 12 * devicePixelRatio
+
+  // barcos — buscar por posición actual (último trail)
+  if (on.barcos){
+    let found=null, foundMmsi=null
+    barcos.forEach((b,mmsi)=>{
+      if (found||b.trail.length===0) return
+      const last=b.trail[b.trail.length-1]
+      const [tx,ty]=proy(last.lat,last.lon)
+      if (Math.hypot(px-tx,py-ty)<R*1.5){ found=b; foundMmsi=mmsi }
+    })
+    if (found){ found._mmsi=foundMmsi; return found }
+  }
+
+  // animales
+  const capasAnim=[
+    {tipo:'ballena',capa:'ballenas'},{tipo:'ave',capa:'aves'},{tipo:'tortuga',capa:'tortugas'}
+  ]
+  for(const{tipo,capa} of capasAnim){
+    if(!on[capa]) continue
+    for(const a of animales.filter(x=>x.tipo===tipo)){
+      const prog=((t*.04+a.animOffset)%1), n=a.lats.length-1
+      const idx=Math.floor(prog*n), frac=prog*n-idx
+      const[ax,ay]=proy(a.lats[idx],a.lons[idx])
+      const[bx,by]=proy(a.lats[Math.min(idx+1,n)],a.lons[Math.min(idx+1,n)])
+      const ppx=ax+(bx-ax)*frac, ppy=ay+(by-ay)*frac
+      if(Math.hypot(px-ppx,py-ppy)<R*1.8) return a
+    }
+  }
+
+  // sismos
+  if(on.sismos){
+    for(const s of sismos){
+      const[sx,sy]=proy(s.lat,s.lon)
+      if(Math.hypot(px-sx,py-sy)<Math.max(R,s.mag*2*devicePixelRatio)) return s
+    }
+  }
+
+  // avistamientos
+  if(on.avistamientos){
+    for(const a of avistamientos){
+      const[ax,ay]=proy(a.lat,a.lon)
+      if(Math.hypot(px-ax,py-ay)<R) return a
+    }
+  }
+  return null
+}
+
+cvs.addEventListener('mousemove',e=>{
+  const[px,py]=getPos(e)
+  hoverEl=buscar(px,py)
+  cvs.style.cursor=hoverEl?'pointer':'default'
+})
+cvs.addEventListener('mouseleave',()=>{ hoverEl=null })
+
+cvs.addEventListener('click',e=>{
+  const[px,py]=getPos(e)
+  const el=buscar(px,py)
+  if(el) mostrarInfo(el)
+  else cerrarInfo()
+})
+
+cvs.addEventListener('touchstart',e=>{
+  const[px,py]=getPos(e)
+  const el=buscar(px,py)
+  if(el) mostrarInfo(el)
+  else cerrarInfo()
+},{passive:true})
+
+// ── INFO ──────────────────────────────────────────────────────────
+function mostrarInfo(el){
+  infoEl=el
+  const tag   = document.getElementById('info-tag')
+  const title = document.getElementById('info-title')
+  const rows  = document.getElementById('info-rows')
+  document.getElementById('info').classList.add('visible')
+  rows.innerHTML=''
+  const row=(k,v)=>{
+    if(v===null||v===undefined||v==='') return
+    const d=document.createElement('div'); d.className='ir'
+    d.innerHTML=`<span class="ik">${k}</span><span class="iv">${v}</span>`
+    rows.appendChild(d)
+  }
+
+  if (el._mmsi !== undefined){
+    tag.textContent='embarcación'
+    title.textContent = el.nombre || `MMSI ${el._mmsi}`
+    row('tipo', tipoBarco(el.shipType))
+    row('velocidad', el.speed ? `${el.speed.toFixed(1)} nudos` : null)
+    row('rumbo', el.heading < 360 ? `${Math.round(el.heading)}°` : null)
+    row('callsign', el.callSign||null)
+    row('mmsi', el._mmsi)
+    row('puntos rastreados', el.trail.length)
+    row('última señal', new Date(el.updated).toLocaleTimeString('es-CL'))
+
+  } else if (el.tipo==='ballena'||el.tipo==='ave'||el.tipo==='tortuga'){
+    tag.textContent = el.tipo
+    title.textContent = el.especie
+    row('individuo', el.individuoId)
+    row('estudio', el.nombreEstudio)
+    row('última posición', el.lastDate?.slice(0,10)||null)
+    row('puntos rastreados', el.lats?.length)
+
+  } else if (el.mag !== undefined){
+    tag.textContent = `sismo M${el.mag}`
+    title.textContent = el.lugar
+    row('magnitud', el.mag)
+    row('profundidad', el.dep ? `${Math.round(el.dep)} km` : null)
+    row('fecha', el.time)
+    row('coordenadas', `${el.lat.toFixed(2)}, ${el.lon.toFixed(2)}`)
+
+  } else {
+    tag.textContent = 'avistamiento'
+    title.textContent = el.especie
+    row('fecha', el.fecha?.slice(0,10)||null)
+    row('fuente', el.dataset||null)
+    row('coordenadas', `${el.lat.toFixed(2)}, ${el.lon.toFixed(2)}`)
+  }
+}
+
+function cerrarInfo(){
+  document.getElementById('info').classList.remove('visible')
+  infoEl=null
+}
+
+// ── INICIO ────────────────────────────────────────────────────────
+window.addEventListener('resize',redim)
+redim()
+requestAnimationFrame(frame)
+conectarAIS()
+cargarMovebank()
+cargarSismos()
+cargarAvistamientos()
+</script>
+</body>
+</html>
