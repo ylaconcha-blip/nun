@@ -342,11 +342,6 @@ const MB_ESTUDIOS = [
 const hidrofono = new Audio('https://proxy.tpa-01.stream101.com/proxy/smrucons?mp=/;stream')
 hidrofono.volume = 0.12
 
-function iniciarAudio() {
-  hidrofono.play().catch(() => {})
-  document.getElementById('audio-ui').classList.add('visible')
-}
-
 function toggleAudio() {
   hidrofono.muted = !hidrofono.muted
   document.getElementById('audio-icon').textContent = hidrofono.muted ? '⊘' : '∿'
@@ -354,11 +349,11 @@ function toggleAudio() {
 }
 
 // solo escuchar sin hundirse — para la superficie
-function soloEscuchar() {
-  iniciarAudio()
-  document.getElementById('btn-escuchar').style.color = 'rgba(255,255,255,.4)'
+function soloEscuchar(){
+  hidrofono.play().catch(() => {})
+  document.getElementById('audio-ui').classList.add('visible')
+  document.getElementById('btn-escuchar').style.color='rgba(255,255,255,.4)'
 }
-
 // ── ESTADO CAPAS Y EJES ───────────────────────────────────────────
 const capasOn = { barcos:true, ballenas:true, aves:true, cables:true, conquista:true }
 const ejesOn  = { desastre:true, mitologia:true, geopolitica:true, biologia:true, antropoceno:true }
@@ -723,7 +718,11 @@ function toggleFS(){
 }
 
 function hundirse(){
-  const v=document.getElementById('velo');v.classList.add('on')
+  // iniciar audio AQUÍ — dentro del click, antes de cualquier async
+  hidrofono.play().catch(() => {})
+  document.getElementById('audio-ui').classList.add('visible')
+
+  const v=document.getElementById('velo'); v.classList.add('on')
   setTimeout(()=>{
     document.getElementById('superficie').classList.add('oculto')
     vivo=true
@@ -733,8 +732,6 @@ function hundirse(){
     conectarAIS()
     cargarMovebank()
     cargarCables()
-    // iniciar hidrófono al hundirse
-    iniciarAudio()
   },700)
 }
 
