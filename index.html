@@ -56,6 +56,19 @@ canvas { position:absolute; inset:0; width:100%; height:100%; }
 }
 #btn-escuchar:hover { color:rgba(255,255,255,.45); }
 
+  #btn-leer-mas {
+  background:none; border:none; color:rgba(255,255,255,.2);
+  font-family:'Inter',sans-serif; font-size:.52rem; letter-spacing:.4em;
+  cursor:pointer; text-transform:lowercase; transition:color .4s;
+  font-weight:300; padding:0 2rem 1.5rem; display:none;
+}
+#btn-leer-mas:hover { color:rgba(255,255,255,.55); }
+#panel-txt-completo {
+  padding:0 2rem 1.5rem; font-size:.82rem; line-height:1.95;
+  color:rgba(255,255,255,.35); font-weight:300; display:none;
+  white-space:pre-wrap;
+}
+
 #nav {
   position:fixed; top:1.8rem; right:2rem; display:flex; gap:2.5rem;
   z-index:110; opacity:0; transition:opacity 1s ease;
@@ -312,6 +325,8 @@ canvas { position:absolute; inset:0; width:100%; height:100%; }
       </div>
     </div>
     <p id="panel-txt"></p>
+    <button id="btn-leer-mas" onclick="toggleTextoCompleto()">∿ leer más</button>
+<div id="panel-txt-completo"></div>
   </div>
   <div id="panel-nav-narrativa">
     <button class="nav-btn" id="btn-prev" onclick="navNarrativa(-1)">← anterior</button>
@@ -365,6 +380,14 @@ function toggleCapa(n) {
 function toggleEje(n) {
   ejesOn[n] = !ejesOn[n]
   document.getElementById('eje-'+n).classList.toggle('off', !ejesOn[n])
+}
+
+  function toggleTextoCompleto(){
+  const el = document.getElementById('panel-txt-completo')
+  const btn = document.getElementById('btn-leer-mas')
+  const visible = el.style.display === 'block'
+  el.style.display = visible ? 'none' : 'block'
+  btn.textContent = visible ? '∿ leer más' : '∿ cerrar'
 }
 
 // ── RUTAS CONQUISTA ───────────────────────────────────────────────
@@ -677,7 +700,23 @@ async function abrirPanel(nodo){
     const nns=nodosDeNarrativa(narrativaActiva.id),idx=nns.findIndex(n=>n.id===nodo.id)
     navNav.classList.add('visible');document.getElementById('btn-prev').disabled=idx<=0;document.getElementById('btn-next').disabled=idx>=nns.length-1
   }else{navNav.classList.remove('visible')}
-  document.getElementById('panel-txt').textContent=nodo.texto_principal||''
+  document.getElementById('panel-txt').textContent = nodo.texto_principal || ''
+document.getElementById('panel-txt-completo').style.display = 'none'
+document.getElementById('btn-leer-mas').style.display = 'none'
+document.getElementById('panel-txt-completo').textContent = ''
+
+// cargar fragmentos de texto
+const {data: frags_txt} = await db.from('fragmentos')
+  .select('*')
+  .eq('nodo_id', nodo.id)
+  .eq('tipo', 'texto')
+  .order('orden')
+
+if (frags_txt && frags_txt.length > 0) {
+  const textoCompleto = frags_txt.map(f => f.contenido_texto).join('\n\n')
+  document.getElementById('panel-txt-completo').textContent = textoCompleto
+  document.getElementById('btn-leer-mas').style.display = 'block'
+}
   const{data:frags}=await db.from('fragmentos').select('*').eq('nodo_id',nodo.id).eq('tipo','imagen').is('contexto_previo',null).order('orden')
   if(frags&&frags.length>0){
     galeriaSet(frags)
