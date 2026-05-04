@@ -5,7 +5,7 @@ exports.handler = async (event) => {
   if (!studyId) return { statusCode: 400, body: 'study_id requerido' }
 
   const auth = Buffer.from(`${process.env.MB_USER}:${process.env.MB_PASS}`).toString('base64')
-  const url = `https://www.movebank.org/movebank/service/direct-read?entity_type=event&study_id=${studyId}&max_events_per_individual=200&attributes=timestamp,location_lat,location_long,individual_local_identifier`
+  const url = `https://www.movebank.org/movebank/service/direct-read?entity_type=event&study_id=${studyId}&max_events_per_individual=50&attributes=timestamp,location_lat,location_long,individual_local_identifier`
 
   return new Promise((resolve) => {
     const req = https.get(url, {
