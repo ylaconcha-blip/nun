@@ -462,22 +462,20 @@ async function cargarCables(){
 async function cargarMovebank(){
   for(const est of MB_ESTUDIOS){
     try{
-      const res=await fetch(`/.netlify/functions/movebank?study_id=${est.id}`)
-      if(!res.ok)continue
-      const csv=await res.text();const lineas=csv.trim().split('\n');if(lineas.length<2)continue
-      const h=lineas[0].split(',').map(x=>x.replace(/"/g,'').trim())
-      const iLat=h.indexOf('location_lat'),iLon=h.indexOf('location_long'),iId=h.indexOf('individual_local_identifier')
-      if(iLat<0||iLon<0)continue
-      const ind=new Map()
-      for(let i=1;i<lineas.length;i++){
-        const c=lineas[i].split(','),lat=parseFloat(c[iLat]),lon=parseFloat(c[iLon]),id=c[iId]?.replace(/"/g,'')||'x'
-        if(isNaN(lat)||isNaN(lon))continue
-        if(!ind.has(id))ind.set(id,[])
-        ind.get(id).push({lat,lon})
-      }
-      ind.forEach((locs)=>{if(locs.length<2)return;animales.push({lats:locs.map(l=>l.lat),lons:locs.map(l=>l.lon),tipo:est.tipo,animOffset:Math.random()})})
-      const k=est.tipo==='ballena'?'ballenas':'aves'
-      document.getElementById('cnt-'+k).textContent=animales.filter(a=>a.tipo===est.tipo).length||''
+      const res = await fetch(`/.netlify/functions/movebank?study_id=${est.id}`)
+      if(!res.ok) continue
+      const data = await res.json()
+      data.forEach(ind => {
+        if(ind.puntos.length < 2) return
+        animales.push({
+          lats: ind.puntos.map(p => p[0]),
+          lons: ind.puntos.map(p => p[1]),
+          tipo: est.tipo,
+          animOffset: Math.random()
+        })
+      })
+      const k = est.tipo === 'ballena' ? 'ballenas' : 'aves'
+      document.getElementById('cnt-' + k).textContent = animales.filter(a => a.tipo === est.tipo).length || ''
     }catch(e){}
   }
 }
