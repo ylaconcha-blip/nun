@@ -466,7 +466,7 @@ async function cargarMovebank(){
       if(!res.ok)continue
       const csv=await res.text();const lineas=csv.trim().split('\n');if(lineas.length<2)continue
       const h=lineas[0].split(',').map(x=>x.replace(/"/g,'').trim())
-      const iLat=h.indexOf('location-lat'),iLon=h.indexOf('location-long'),iId=h.indexOf('individual-local-identifier')
+      const iLat=h.indexOf('location_lat'),iLon=h.indexOf('location_long'),iId=h.indexOf('individual_local_identifier')
       if(iLat<0||iLon<0)continue
       const ind=new Map()
       for(let i=1;i<lineas.length;i++){
